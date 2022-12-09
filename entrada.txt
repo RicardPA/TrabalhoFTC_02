@@ -1,0 +1,6 @@
+({A, B}, {a, b, c}, {A->aB|cB, B->bB|?}, A)
+aaabbb
+abbaaa
+bbbbbb
+aaaaaa
+aaaaab
