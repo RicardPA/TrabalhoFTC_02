@@ -19,37 +19,59 @@ import java.util.ArrayList;
 import java.util.Scanner;
 
 class Gramatica {
-  ArrayList<String> variaveis = new ArrayList<>();
-  ArrayList<String> terminais = new ArrayList<>();
-  ArrayList<String> regras = new ArrayList<>();
-  ArrayList<String> sequancias = new ArrayList<>();
-  String inicial = "";
+  public ArrayList<String> variaveis = new ArrayList<>();
+  public NonTerminal initial;
+  public ArrayList<Production> productions = new ArrayList<>();
+  public ArrayList<String> terminais = new ArrayList<>();
+  public ArrayList<String> regras = new ArrayList<>();
+  public ArrayList<String> sequancias = new ArrayList<>();
+  public String inicial = "";
+
+  public static ArrayList<String> alfabeto = new ArrayList<>();
 
   private static boolean verificar(char caracter) {
     return (caracter != ' ' && caracter != ','
-         && caracter != '{' && caracter != '('? true : false);
+        && caracter != '{' && caracter != '(' ? true : false);
   }
 
   public void ParaString() throws Exception {
     System.out.println("\n\n\t (Gramatica)");
     System.out.println("\nVariaveis: ");
-    for(int i = 0; i < this.variaveis.size(); i++) {
+    for (int i = 0; i < this.variaveis.size(); i++) {
       System.out.println(this.variaveis.get(i));
     }
     System.out.println("\nTerminais: ");
-    for(int i = 0; i < this.terminais.size(); i++) {
+    for (int i = 0; i < this.terminais.size(); i++) {
       System.out.println(this.terminais.get(i));
     }
     System.out.println("\nRegras: ");
-    for(int i = 0; i < this.regras.size(); i++) {
+    for (int i = 0; i < this.regras.size(); i++) {
       System.out.println(this.regras.get(i));
     }
     System.out.println("\nInicial: ");
     System.out.println(this.inicial);
     System.out.println("\nSequancias: ");
-    for(int i = 0; i < this.sequancias.size(); i++) {
+    for (int i = 0; i < this.sequancias.size(); i++) {
       System.out.println(this.sequancias.get(i));
     }
+  }
+
+  public static Gramatica convertTo2NF(Gramatica grammar) {
+    Gramatica converted = new Gramatica(true);
+    grammar.productions.forEach((p) -> {
+      if (p.size > 2) {
+        ArrayList<Production> newProductions = Production.convertProdutionTo2NF(p);
+        converted.productions.addAll(newProductions);
+      } else {
+        converted.productions.add(p);
+      }
+    });
+    return converted;
+  }
+
+  public Gramatica(boolean isTest) {
+    this.initial = new NonTerminal("");
+    this.productions = new ArrayList<Production>();
   }
 
   Gramatica() {
@@ -58,7 +80,7 @@ class Gramatica {
       boolean primeiraLinha = true;
       int quantidadeRegras = 0;
 
-      while(leitor.hasNextLine()) {
+      while (leitor.hasNextLine()) {
         String linha = leitor.nextLine();
 
         if (primeiraLinha) {
@@ -66,57 +88,65 @@ class Gramatica {
 
           // Obter regioes de valores
           variaveis = linha.substring(0, linha.indexOf("}"));
-          auxiliar = linha.substring(linha.indexOf("}")+1);
+          auxiliar = linha.substring(linha.indexOf("}") + 1);
           terminais = auxiliar.substring(0, auxiliar.indexOf("}"));
-          auxiliar = auxiliar.substring(auxiliar.indexOf("}")+1);
+          auxiliar = auxiliar.substring(auxiliar.indexOf("}") + 1);
           regras = auxiliar.substring(0, auxiliar.indexOf("}"));
-          auxiliar = auxiliar.substring(auxiliar.indexOf("}")+1);
+          auxiliar = auxiliar.substring(auxiliar.indexOf("}") + 1);
           inicial = auxiliar.substring(0, auxiliar.indexOf(")"));
 
           // Obter variaveis
-          for(int i = 0; i < variaveis.length(); i++) {
-            if(verificar(variaveis.charAt(i))) {
-              this.variaveis.add((""+variaveis.charAt(i)));
+          for (int i = 0; i < variaveis.length(); i++) {
+            if (verificar(variaveis.charAt(i))) {
+              this.variaveis.add(("" + variaveis.charAt(i)));
             }
           }
           // Obter terminais
-          for(int i = 0; i < terminais.length(); i++) {
-            if(verificar(terminais.charAt(i))) {
-              this.terminais.add((""+terminais.charAt(i)));
+          for (int i = 0; i < terminais.length(); i++) {
+            if (verificar(terminais.charAt(i))) {
+              this.terminais.add(("" + terminais.charAt(i)));
             }
           }
           // Obter inicial
-          for(int i = 0; i < inicial.length(); i++) {
-            if(verificar(inicial.charAt(i))) {
-              this.inicial += ((""+inicial.charAt(i)));
+          for (int i = 0; i < inicial.length(); i++) {
+            if (verificar(inicial.charAt(i))) {
+              this.inicial += (("" + inicial.charAt(i)));
             }
           }
           // Obter regras
-          for(int i = 0; i < regras.length(); i++) {
-            if(regras.charAt(i) == ',') {
+          for (int i = 0; i < regras.length(); i++) {
+            if (regras.charAt(i) == ',') {
               quantidadeRegras++;
             }
           }
 
-          auxiliar = regras.substring(regras.indexOf(",")+1);
+          auxiliar = regras.substring(regras.indexOf(",") + 1);
           regras = auxiliar.substring(0, auxiliar.indexOf(","));
-          for(int i = 0; i < quantidadeRegras; i++) {
-            if(auxiliar.indexOf(",") != -1) {
+          for (int i = 0; i < quantidadeRegras; i++) {
+            if (auxiliar.indexOf(",") != -1) {
               regras = auxiliar.substring(0, auxiliar.indexOf(","));
             } else {
               regras = auxiliar;
             }
 
-            for(int j = 0; j < regras.length(); j++) {
-              if(verificar(regras.charAt(j))) {
+            for (int j = 0; j < regras.length(); j++) {
+              if (verificar(regras.charAt(j))) {
                 regra += regras.charAt(j);
               }
             }
 
             this.regras.add(regra);
+            String line = regra;
+            String[] vet1 = line.split("->");
+            NonTerminal atual = new NonTerminal(vet1[0]);
+            String[] vet2 = vet1[1].split("\\|");
+            for (int j = 0; j < vet2.length; j++) {
+              Production newP = new Production(atual, vet2[j]);
+              this.productions.add(newP);
+            }
 
-            if(auxiliar.indexOf(",") != -1) {
-              auxiliar = auxiliar.substring(auxiliar.indexOf(",")+1);
+            if (auxiliar.indexOf(",") != -1) {
+              auxiliar = auxiliar.substring(auxiliar.indexOf(",") + 1);
             }
             regra = "";
           }
@@ -125,17 +155,102 @@ class Gramatica {
           sequancias.add(linha);
         }
       }
+      this.initial = new NonTerminal(this.inicial);
     } catch (Exception e) {
-      System.out.println("---\n\tERRO: Certifiquece que o arquivo (entrada.txt)"+
-                         "\n\tse encontra no mesmo diretorio do codigo e se a"+
-                         "\n\tentrada esta da forma recomendada. \n---");
+      System.out.println("---\n\tERRO: Certifiquece que o arquivo (entrada.txt)" +
+          "\n\tse encontra no mesmo diretorio do codigo e se a" +
+          "\n\tentrada esta da forma recomendada. \n---");
     }
   }
 
+  public String toText() {
+    String result = "Quantidade de regras: " + this.productions.size() + "\n";
+    for (int i = 0; i < this.productions.size(); i++) {
+      result += this.productions.get(i).toText() + "\n";
+    }
+    return result;
+  }
 
 }
 
-class Main {
+class Production {
+  public NonTerminal nonTerminal;
+  public String result;
+  public int size = 0;
+
+  public Production(NonTerminal v, String result) {
+    this.nonTerminal = v;
+    this.result = result;
+    this.size = result.length();
+  }
+
+  public String getLeft() {
+    return "" + this.result.charAt(0);
+  }
+
+  public String getRight() {
+    String left = "";
+    for (int i = 1; i < this.result.length(); i++) {
+      left = left + this.result.charAt(i);
+    }
+
+    return left;
+  }
+
+  /*
+   * para cada regra R->x com |x|>2, faca:
+   * R->x[0]A criando uma nova variavel A, que eh definida:
+   * A->x' em que x' eh igual a x mas sem a primeira posicao de x
+   */
+  public static ArrayList<Production> convertProdutionTo2NF(Production p) { // p => R->x
+    ArrayList<Production> newProductions = new ArrayList<Production>();
+    if (p.size > 2) {
+      String left = p.getLeft(); // left = x[0]
+      NonTerminal newV = new NonTerminal(); // newV = A
+      // Gramatica.alfabeto.add(newV.name);
+      Production newGenericProduction = new Production(newV, p.getRight()); // newGenericProduction = A->x'
+      Production changeP = new Production(p.nonTerminal, left + newV.name); // changeP = R->x[0]A
+      newProductions.add(changeP);
+      newProductions.addAll(convertProdutionTo2NF(newGenericProduction)); // recursividade, possível loop
+                                                                          // infinito?*********************
+    } else {
+      newProductions.add(p);
+    }
+    return newProductions;
+  }
+
+  public String toText() {
+    String production = this.nonTerminal.name + "->" + this.result;
+    return production;
+  }
+}
+
+class NonTerminal {
+  public String name = "";
+
+  public NonTerminal(String name) {
+    this.name = name;
+  }
+
+  public NonTerminal() {
+    String possiveisNomes = "ABCDEFGHIJKLMNOPQRSTUVWXYZ/,.\\*&%$#@!?";
+    for (int i = 0; i < possiveisNomes.length(); i++) {
+      boolean exists = false;
+      for (int j = 0; j < Gramatica.alfabeto.size(); j++) {
+        if ((Gramatica.alfabeto.get(j)).equals("" + possiveisNomes.charAt(i))) {
+          exists = true;
+        }
+      }
+      if (!exists) {
+        this.name = "" + possiveisNomes.charAt(i);
+        Gramatica.alfabeto.add(this.name);
+        break;
+      }
+    }
+  }
+}
+
+public class Main {
   public static void limparTerminal() throws Exception {
     if (System.getProperty("os.name").contains("Windows")) {
       new ProcessBuilder("cmd", "/c", "cls").inheritIO().start().waitFor();
@@ -144,13 +259,13 @@ class Main {
     }
   }
 
-  public static void main(String[] args) throws Exception{
+  public static void main(String[] args) throws Exception {
     // Variaveis
     Scanner leitor = new Scanner(System.in);
     int opcao = -1;
-
+    Gramatica g = new Gramatica(true);
     // Inicio do programa
-    while(opcao != 0) {
+    while (opcao != 0) {
       limparTerminal();
       System.out.println("Trabalho de FTC - Ciencia da Computacao - 2022");
       System.out.println("0) Fechar programa.");
@@ -159,13 +274,15 @@ class Main {
       System.out.print("Escolha uma opcao: ");
 
       opcao = leitor.nextInt();
-
-      switch(opcao) {
+      switch (opcao) {
         case 1:
-          Gramatica g = new Gramatica();
+          g = new Gramatica();
           g.ParaString();
           break;
         case 2:
+          System.out.println("Antes");
+          System.out.println(g.toText());
+          System.out.println("Depois");
           break;
         default:
           limparTerminal();
@@ -180,5 +297,30 @@ class Main {
       limparTerminal();
     }
 
+    leitor.close();
+
+    // System.out.println("dasdasdasdasd");
+    /*
+     * Gramatica teste = new Gramatica(true);
+     * teste.initial = new NonTerminal("A");
+     * Production n = new Production(teste.initial, "aBcdefg");
+     * teste.productions.add(n);
+     * n = new Production(new NonTerminal("B"), "de");
+     * teste.productions.add(n);
+     * n = new Production(new NonTerminal("B"), "egh");
+     * teste.productions.add(n);
+     * n = new Production(new NonTerminal("B"), "");
+     * System.out.println(teste.toText());
+     * teste.variaveis.add("A");
+     * teste.variaveis.add("B");
+     * 
+     * //Gramatica.alfabeto.add("A");
+     * //Gramatica.alfabeto.add("B");
+     * 
+     * System.out.println("antes");
+     * Gramatica teste2 = Gramatica.convertTo2NF(teste);
+     * System.out.println(teste2.toText());
+     * System.out.println("depois");
+     */
   }
 }
