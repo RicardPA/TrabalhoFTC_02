@@ -53,18 +53,20 @@ class Gramatica {
           for (int i = 0; i < variaveis.length(); i++) {
             if (verificar(variaveis.charAt(i))) {
               this.variaveis.add(("" + variaveis.charAt(i)));
+              Gramatica.alfabeto.add(("" + variaveis.charAt(i)));
             }
           }
           // Obter terminais
           for (int i = 0; i < terminais.length(); i++) {
             if (verificar(terminais.charAt(i))) {
               this.terminais.add(("" + terminais.charAt(i)));
+              Gramatica.alfabeto.add(("" + terminais.charAt(i)));
             }
           }
           // Obter inicial
           for (int i = 0; i < inicial.length(); i++) {
             if (verificar(inicial.charAt(i))) {
-              this.inicial += (("" + inicial.charAt(i)));
+              this.inicial += ("" + inicial.charAt(i));
             }
           }
           // Obter regras
@@ -218,32 +220,82 @@ class Production {
     tempProductions.addAll(p);
     for(int i = 0; i < tempProductions.size(); i++) {
       String valor = tempProductions.get(i).result;
+      String novoNome = "";
       if(Gramatica.eTerminal(valor, g)) {
-        for (int j = 0; j < possiveisNomes.length(); j++) {
+        boolean encontrado = false;
+        for (int j = 0; j < possiveisNomes.length() && !encontrado; j++) {
           boolean exists = false;
-          for (int k = 0; k < Gramatica.alfabeto.size(); k++) {
+          for (int k = 0; k < Gramatica.alfabeto.size() && !exists; k++) {
             if ((Gramatica.alfabeto.get(k)).equals("" + possiveisNomes.charAt(j))) {
               exists = true;
             }
           }
 
           if (!exists) {
-            tempProductions.get(i).nonTerminal.name = "" + possiveisNomes.charAt(i);
+            NonTerminal n = new NonTerminal("" + possiveisNomes.charAt(j));
+            tempProductions.get(i).nonTerminal = n;
+            novoNome = tempProductions.get(i).nonTerminal.name;
             Gramatica.alfabeto.add(tempProductions.get(i).nonTerminal.name);
+            encontrado = true;
           }
         }
 
         for(int j = 0; j < tempProductions.size(); j++) {
           if(tempProductions.get(j).result.length() > 1) {
-            for(int k = 0; k < tempProductions.get(k).result.length(); k++) {
-              if((""+tempProductions.get(k).result.charAt(k)).equals(valor)) {
-                if(k+1 < tempProductions.get(k).result.length()) {
-                  tempProductions.get(k).result = tempProductions.get(k).result.substring(0, k) +
-                    tempProductions.get(i).nonTerminal.name.charAt(0) +
-                         tempProductions.get(k).result.substring(k+1);
+            for(int k = 0; k < tempProductions.get(j).result.length(); k++) {
+              if((""+tempProductions.get(j).result.charAt(k)).equals(valor)) {
+                if(k+1 < tempProductions.get(j).result.length()) {
+                  tempProductions.get(j).result = tempProductions.get(j).result.substring(0, k) +
+                                                  novoNome +
+                                                  tempProductions.get(j).result.substring(k+1);
                 } else {
-                  tempProductions.get(k).result = tempProductions.get(k).result.substring(0, k) +
-                    tempProductions.get(i).nonTerminal.name.charAt(0);
+                  tempProductions.get(j).result = tempProductions.get(j).result.substring(0, k) +
+                                                  novoNome;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    for(int i = 0; i < tempProductions.size(); i++) {
+      for(int l = 0; l < tempProductions.get(i).result.length(); l++) {
+        String valor = ""+tempProductions.get(i).result.charAt(l);
+        String novoNome = "";
+
+        if(Gramatica.eTerminal(valor, g)) {
+          boolean encontrado = false;
+          for (int j = 0; j < possiveisNomes.length() && !encontrado; j++) {
+            boolean exists = false;
+            for (int k = 0; k < Gramatica.alfabeto.size() && !exists; k++) {
+              if ((Gramatica.alfabeto.get(k)).equals("" + possiveisNomes.charAt(j))) {
+                exists = true;
+              }
+            }
+
+            if (!exists) {
+              NonTerminal n = new NonTerminal("" + possiveisNomes.charAt(j));
+              novoNome = n.name;
+              System.out.println(n.name+"->"+valor);
+              tempProductions.add(new Production(n, valor));
+              Gramatica.alfabeto.add(n.name);
+              encontrado = true;
+            }
+          }
+
+          for(int j = 0; j < tempProductions.size(); j++) {
+            if(tempProductions.get(j).result.length() > 1) {
+              for(int k = 0; k < tempProductions.get(j).result.length(); k++) {
+                if((""+tempProductions.get(j).result.charAt(k)).equals(valor)) {
+                  if(k+1 < tempProductions.get(j).result.length()) {
+                    tempProductions.get(j).result = tempProductions.get(j).result.substring(0, k) +
+                                                    novoNome +
+                                                    tempProductions.get(j).result.substring(k+1);
+                  } else {
+                    tempProductions.get(j).result = tempProductions.get(j).result.substring(0, k) +
+                                                    novoNome;
+                  }
                 }
               }
             }
