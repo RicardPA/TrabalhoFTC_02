@@ -210,6 +210,7 @@ class Production {
     return left;
   }
 
+
   public static void convertProdutionToCNF(ArrayList<Production> p, Gramatica g) throws Exception {
     String possiveisNomes = "ABCDEFGHIJKLMNOPQRSTUVWXYZ/,.\\*&%$#@!?";
     ArrayList<Production> tempProductions = new ArrayList<Production>();
