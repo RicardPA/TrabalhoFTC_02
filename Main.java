@@ -26,6 +26,8 @@ class Gramatica {
   public ArrayList<String> regras = new ArrayList<>();
   public ArrayList<String> terminais = new ArrayList<>();
   public ArrayList<String> sequancias = new ArrayList<>();
+  public ArrayList<NonTerminal> nullables = new ArrayList<>();
+  public ArrayList<Edge> inverseUnitRelations = new ArrayList<>();
   public static ArrayList<String> alfabeto = new ArrayList<>();
 
   Gramatica() {
@@ -112,6 +114,8 @@ class Gramatica {
         }
       }
       this.initial = new NonTerminal(this.inicial);
+      this.nullables = this.getNullables();
+      this.inverseUnitRelations = this.getInverseUnitRelation();
     } catch (Exception e) {
       System.out.println("---\n\tERRO: Certifiquece que o arquivo (entrada.txt)" +
           "\n\tse encontra no mesmo diretorio do codigo e se a" +
@@ -186,6 +190,208 @@ class Gramatica {
   public static void convertToCNF(Gramatica g) throws Exception {
     Gramatica converted = new Gramatica(true);
     Production.convertProdutionToCNF(g.productions, g);
+  }
+
+  public String toText() {
+    String result = "Quantidade de regras: " + this.productions.size() + "\n";
+    for (int i = 0; i < this.productions.size(); i++) {
+      result += this.productions.get(i).toText() + "\n";
+    }
+    return result;
+  }
+
+  public ArrayList<NonTerminal> getNullables(){
+    /*
+     * retorna uma lista de todas as variaveis que podem produzir LAMBDA (diretamente ou indiretamente)
+     */
+    
+    ArrayList<NonTerminal> nullables= new ArrayList<>();
+
+    //encontra as variaveis que geram LAMBDA diretamente
+    for (int i = 0; i < this.productions.size(); i++) {
+      if(this.productions.get(i).result.equals("")){
+        nullables.add(this.productions.get(i).nonTerminal);
+      }
+    }
+
+    boolean nullablesChanged = false;
+    //encontra todas as variaveis que geram LAMBDA indiretamente
+    do {
+      nullablesChanged = false;
+      for (int i = 0; i < this.productions.size(); i++) {
+        if(this.productions.get(i).containsOnlyFrom(nullables)){
+          nullables.add(this.productions.get(i).nonTerminal);
+          nullablesChanged=true;
+        }
+      }
+    } while (nullablesChanged);
+
+    return nullables;
+  }
+
+  public ArrayList<Edge> getInverseUnitRelation(){
+    /*
+     * retorna uma lista de todos os pares ordenados (y, A) que significa que A->y (em 1 passo)
+     */
+    ArrayList<Edge> Ig = new ArrayList<>();
+    ArrayList<String> allSimbols = new ArrayList<>();
+    allSimbols.addAll(this.terminais);
+    allSimbols.addAll(this.variaveis);
+
+    for (int i = 0; i < this.productions.size(); i++) {
+      String result = this.productions.get(i).result;
+
+      //inclui (y, A) caso A->y ou A->By ou A->yB em que B pode gerar LAMBDA, e y é um simbolo qualquer
+      if(result.length()>0 && result.length()<3){//só funciona no formato 2NF
+        if(result.length()==1){//caso em que A->y
+          Ig.add(new Edge(result, this.productions.get(i).nonTerminal.name));//add (y, A)
+        }
+        else{
+          if(NonTerminal.listContains(this.nullables, ""+result.charAt(0))){//caso em que A->By, em que B pode gerar LAMBDA
+            Ig.add(new Edge(""+result.charAt(1), this.productions.get(i).nonTerminal.name));//add (y, A)
+          }
+          else if(NonTerminal.listContains(this.nullables, ""+result.charAt(1))){//caso em que A->yB, em que B pode gerar LAMBDA
+            Ig.add(new Edge(""+result.charAt(0), this.productions.get(i).nonTerminal.name));//add (y, A)
+          }
+        }
+      }
+      
+    }
+    return Ig;
+  }
+
+  public ArrayList<Edge> getInvUnitRelOf(String M){
+    /*
+     * Retorna uma lista de todos os pares ordenados (y, A) em que A->* y, e y é um símbolo da palavra M
+     */
+    ArrayList<Edge> inverseUofM = new ArrayList<>();
+
+    for (int i = 0; i < M.length(); i++) {
+      ArrayList<NonTerminal> listProducesPartOfM = new ArrayList<>();
+      String lookingFor = ""+M.charAt(i);//lookingFor = y
+
+      //encontra todas as variaveis que geram lookingFor diretamente
+      for (int j = 0; j < this.inverseUnitRelations.size(); j++) {
+        if(this.inverseUnitRelations.get(j).start.equals(lookingFor)){
+          listProducesPartOfM.add(new NonTerminal(this.inverseUnitRelations.get(j).end));
+        }
+        else if(this.inverseUnitRelations.get(j).start.equals(M)){
+          listProducesPartOfM.add(new NonTerminal(this.inverseUnitRelations.get(j).end));
+        }
+      }
+
+      boolean isListChanged = false;
+      //encontra todas as variaveis que geram variaveis de listProducesPartOfM
+      do {
+        isListChanged = false;
+        for (int j = 0; j < this.productions.size(); j++) {
+          String result = this.productions.get(i).result;//A->result
+
+          if(result.length()>0 && result.length()<3){
+            if(result.length()==1){
+              if(NonTerminal.listContains(listProducesPartOfM, result)){//caso em que A->C, em que C esta na lista listProducesPartOfM
+                listProducesPartOfM.add(this.productions.get(i).nonTerminal);
+                isListChanged=true;
+              }
+            }
+            else if(NonTerminal.listContains(this.nullables, ""+result.charAt(0))){
+              if(NonTerminal.listContains(listProducesPartOfM, ""+result.charAt(1))){//caso em que A->BC, em que B pode gerar LAMBDA e C esta na lista listProducesPartOfM
+                listProducesPartOfM.add(this.productions.get(i).nonTerminal);
+                isListChanged=true;
+              }
+            }
+            else if(NonTerminal.listContains(this.nullables, ""+result.charAt(1))){
+              if(NonTerminal.listContains(listProducesPartOfM, ""+result.charAt(0))){//caso em que A->CB, em que B pode gerar LAMBDA e C esta na lista listProducesPartOfM
+                listProducesPartOfM.add(this.productions.get(i).nonTerminal);
+                isListChanged=true;
+              }
+            }
+          }
+        }
+      } while (isListChanged);
+
+      listProducesPartOfM = NonTerminal.removeDuplicatesFromList(listProducesPartOfM);
+      for (int j = 0; j <listProducesPartOfM.size(); j++) {
+        inverseUofM.add(new Edge(lookingFor, listProducesPartOfM.get(j).name));
+      }
+    }
+    return inverseUofM;
+  }
+
+  public ArrayList<String> getAuxiliarTset(String word){
+    /*
+     * retorna o conjunto das variáveis que geram (em 1 passo) as partes que compoem word. Ou entao, a propria word se |word|=1
+     */
+    ArrayList<String> auxiliarTset = new ArrayList<>();
+    if(word.length()>0 && word.length()<3){
+      if(word.length()==1){
+        auxiliarTset.add(word);
+      }
+      else{
+        String left = ""+word.charAt(0);//word = Left+Right, left=Left
+        String right = ""+word.charAt(1);//word = Left+Right, right=Right
+        
+        ArrayList<NonTerminal> possiblesLeftNonTerminal = new ArrayList<>();//contem as variaveis que podem gerar left
+        ArrayList<Edge> Tset = this.getTset(left);
+        for (int i = 0; i < Tset.size(); i++) {
+          possiblesLeftNonTerminal.add(new NonTerminal(Tset.get(i).end));
+        }
+
+        ArrayList<NonTerminal> possiblesRightNonTerminal = new ArrayList<>();//contem as variaveis que podem gerar right
+        Tset = this.getTset(right);
+        for (int i = 0; i < Tset.size(); i++) {
+          possiblesRightNonTerminal.add(new NonTerminal(Tset.get(i).end));
+        }
+
+        if(possiblesLeftNonTerminal.size()>0 && possiblesRightNonTerminal.size()>0){
+          for (int i = 0; i < possiblesLeftNonTerminal.size(); i++) {
+            for (int j = 0; j < possiblesRightNonTerminal.size(); j++) {
+
+              //verifica se existe alguma variavel A tal que A->LEFT+RIGHT, em que LEFT esta em possiblesLeftNonTerminal, e RIGHT esta em possiblesRightNonTerminal
+              String desiredResult = possiblesLeftNonTerminal.get(i).name+possiblesRightNonTerminal.get(j).name;
+              
+              for (int k = 0; k < this.inverseUnitRelations.size(); k++) {
+                if(this.inverseUnitRelations.get(k).end.equals(desiredResult)){
+                  auxiliarTset.add(this.inverseUnitRelations.get(k).start);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return auxiliarTset;
+  }
+
+  public ArrayList<Edge> getTset(String word){
+    /*
+     * retorna uma lista de todos os pares ordenados (y, A) em que A->y, em que y é uma parte de word. Ou seja, retorna todas as variaveis que podem gerar (diretamente ou indiretamente) as partes de word
+     */   
+    ArrayList<String> Taux = this.getAuxiliarTset(word);
+    String nonTerminals = "";
+    
+    for (int i = 0; i < Taux.size(); i++) {
+      nonTerminals+=Taux.get(i);
+    }
+    
+    return this.getInvUnitRelOf(nonTerminals);
+  }
+
+  public boolean producesWord(String word){
+    if(this.inverseUnitRelations.size()<1){
+      System.out.println("Tente inicializar a variavel antes de chamar o metodo CYK modificado");
+      return false;
+    }
+    else{
+      ArrayList<Edge> nonTerminals = this.getTset(word);
+      for (int i = 0; i < nonTerminals.size(); i++) {
+        if(nonTerminals.get(i).end.equals(this.initial.name)){
+          return true;
+        }
+      }
+
+      return false;
+    }
   }
 }
 
@@ -326,6 +532,21 @@ class Production {
     String production = this.nonTerminal.name + "->" + this.result;
     return production;
   }
+
+   public boolean containsOnlyFrom(ArrayList<NonTerminal> listFrom){
+    ArrayList<String> listFromNames = new ArrayList<>();
+    
+    listFrom.forEach((p)->{
+      listFromNames.add(p.name);
+    });
+
+    for (int i = 0; i < this.result.length(); i++) {
+      if(listFromNames.contains(""+this.result.charAt(i))==false){//se alguma das variaveis de this.result não estiver em listFrom, retorna false
+        return false;
+      }
+    }
+    return true;
+  }
 }
 
 class NonTerminal {
@@ -333,6 +554,7 @@ class NonTerminal {
 
   public NonTerminal(String name) {
     this.name = name;
+    Gramatica.alfabeto.add(this.name);
   }
 
   public NonTerminal() {
@@ -350,6 +572,36 @@ class NonTerminal {
         break;
       }
     }
+  }
+
+  public static boolean listContains(ArrayList<NonTerminal> list, String value){
+    for (int i = 0; i < list.size(); i++) {
+      if(list.get(i).name.equals(value)){
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static ArrayList<NonTerminal> removeDuplicatesFromList(ArrayList<NonTerminal> list){
+    ArrayList<NonTerminal> noDuplicates = new ArrayList<>();
+    list.forEach((element)->{
+      if(noDuplicates.contains(element)==false){
+        noDuplicates.add(element);
+      }
+    });
+    return noDuplicates;
+  }
+}
+
+class Edge{
+  public String start;
+  public String end;
+
+
+  public Edge(String start, String end){
+    this.start=start;
+    this.end=end;
   }
 }
 
@@ -391,14 +643,24 @@ public class Main {
           break;
         case 3:
           if(g != null) {
-            Gramatica gAuxiliar = g.convertTo2NF(g);
+            Gramatica gAuxiliar = Gramatica.convertTo2NF(g);
             Gramatica.convertToCNF(g);
             g.initial = gAuxiliar.initial;
             g.productions = gAuxiliar.productions;
           }
           break;
         case 4:
-          if(g != null) {}
+          if(g != null) {
+            for (int i = 0; i < g.sequancias.size(); i++) {
+              boolean answer = g.producesWord(g.sequancias.get(i));
+              if(answer){
+                System.out.println("A sentenca "+g.sequancias.get(i)+" pertence (SIM) a gramatica!");
+              }
+              else{
+                System.out.println("A sentenca "+g.sequancias.get(i)+" NAO pertence a gramatica!");
+              }
+            }
+          }
           break;
         default:
           limparTerminal();
