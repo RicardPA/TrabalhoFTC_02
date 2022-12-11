@@ -1,4 +1,4 @@
-({A, B}, {a, b, c}, {A->aB|cB, B->bB|?}, A)
+({A, B}, {a, b, c}, {A->aB|cB|a, B->bB|bA|b}, A)
 aaabbb
 abbaaa
 bbbbbb
